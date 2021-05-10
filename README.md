@@ -23,7 +23,8 @@ SerialPort.GetPortNames();
 Supply the appropriate port to ```CommunicationClass```:
 
 ```csharp
-
+CommunicationClass communication = new(portToBeUsed, deviceId);
+await communication.GetValue(MeasurementFloatMessages.Temperature)
 ```
 
 ## Limitations
