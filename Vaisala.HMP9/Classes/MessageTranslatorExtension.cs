@@ -7,14 +7,20 @@ namespace Vaisala.HMP.Classes
     public static class MessageTranslatorExtension
     {
         private static readonly char[] _trimChars = new char[] { ' ', '\t', '\0', '\r', '\n' };
-        public static int ResponseHeadLength = 3;
-        public static int RequestHeadLength = 2;
-        public static int Crc16Length = 2;
+        
+        public static uint ResponseHeadLength = 3;
+        public static uint ResponseHeadDeviceInformationLength = 2;
+        public static uint ResponseSubHeadLength = 6;
+
+        public static uint RequestHeadLength = 2;
+        public static uint RequestHeadDeviceInformationLength = 5;
+        
+        public static uint Crc16Length = 2;
 
         public static bool CheckResponseMessage(this byte[] message) {
             byte[] crc = message.GetCrc16();
-            int offset = message.Length - Crc16Length;
-            for (int i = offset; i < message.Length; i++)
+            uint offset = (uint)message.Length - Crc16Length;
+            for (uint i = offset; i < message.Length; i++)
                 if (message[i] != crc[i - offset])
                     return false;
 
@@ -120,6 +126,30 @@ namespace Vaisala.HMP.Classes
             return baseArray;
         }
 
+        public static byte[] ToBytes(this RequestExtendedStruct message, byte deviceId, bool isLittleEndian) {
+
+            byte[] baseArray = new byte[RequestHeadDeviceInformationLength + Crc16Length];
+
+            baseArray[0] = deviceId;
+            baseArray[1] = (byte)message.FunctionCode;
+            baseArray[2] = (byte)message.MEI;
+            baseArray[3] = (byte)message.DeviceIdCat;
+            baseArray[4] = (byte)message.DeviceIdObj;
+
+            byte[] crc16 = baseArray.GetCrc16();
+
+            Array.Copy(crc16, 0, baseArray, baseArray.Length - Crc16Length, Crc16Length);
+
+            return baseArray;
+        }
+
+        public static DeviceIdentificationModel ToDeviceIdentificationModel(this byte[] bytes, bool flipBytes = false) {
+            byte deviceIdObj = bytes[0]; // Id
+            byte[] value = bytes[2..(bytes.Length)]; // 
+
+            return new DeviceIdentificationModel(deviceIdObj, Encoding.ASCII.GetString(value));
+        }
+        
     }
 
 }

@@ -1,6 +1,6 @@
 ﻿namespace Vaisala.HMP.Enums
 {
-    public enum FunctionCode : byte
+    public enum FunctionType : byte
     {
         ReadHoldingRegisters = 0x03,
         WriteMultipleRegisters = 0x10,

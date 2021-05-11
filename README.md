@@ -14,6 +14,11 @@ NOTE: Unfinished (in-progress)
 
 ## Usage
 
+```csharp
+using System.IO.Ports;
+using Vaisala.HMP.Classes;
+```
+
 Obtain list of serial ports available via:
 
 ```csharp

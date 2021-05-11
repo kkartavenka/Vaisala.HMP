@@ -1,0 +1,55 @@
+﻿@page "/"
+@using Classes
+@using Vaisala.HMP.Models
+@inject VaisalaControl VaisalaConnector;
+
+    <Container>
+        <Row>
+            <Field Horizontal="true">
+                <FieldLabel ColumnSize="ColumnSize.Is3">Port</FieldLabel>
+                <FieldBody ColumnSize="ColumnSize.Is7">
+                    <Select @bind-SelectedValue="@VaisalaConnector.Port" TValue="string" style="min-width:10em;">
+                        <SelectItem Value="@string.Empty"></SelectItem>
+                        @foreach (string port in VaisalaConnector.AvailableSerialPorts) {
+                            <SelectItem Value="@port">@port</SelectItem>
+                        }
+                    </Select>
+                </FieldBody>
+            </Field>
+        </Row>
+        <Row>
+            <Field Horizontal="true">
+                <FieldLabel ColumnSize="ColumnSize.Is3">Device Id</FieldLabel>
+                <FieldBody ColumnSize="ColumnSize.Is7">
+                    <TextEdit Placeholder="@VaisalaConnector.DeviceId.ToString()" Pattern="[0-9]" />
+                </FieldBody>
+            </Field>
+        </Row>
+
+        <Button Color="Color.Light" Clicked="@(() => VaisalaConnector.GetSerialPortList())">Refresh</Button>
+        <Button Color="Color.Light" Clicked="@(async () => await TryConnect())">Try Connect</Button>
+
+    </Container>
+
+<Container>
+    @foreach(DeviceIdentificationModel info in VaisalaConnector.DeviceIdentification) {
+        <Row>@($"{info.ObjectName} - {info.Value}")</Row>
+    }
+</Container>
+
+    @code {
+        bool visible = false;
+        private string _selectedSerialPort;
+
+        protected async Task TryConnect() {
+            await VaisalaConnector.TryConnect();
+        }
+
+        protected override Task OnInitializedAsync() {
+            VaisalaConnector.Initialize();
+
+
+
+            return base.OnInitializedAsync();
+        }
+    }

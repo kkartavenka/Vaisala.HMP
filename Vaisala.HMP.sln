@@ -10,6 +10,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Visualization.Blazor", "Visualization.Blazor\Visualization.Blazor.csproj", "{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +22,10 @@ Global
 		{5B991CC7-8365-479D-8729-E6D96FA303AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B991CC7-8365-479D-8729-E6D96FA303AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B991CC7-8365-479D-8729-E6D96FA303AD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

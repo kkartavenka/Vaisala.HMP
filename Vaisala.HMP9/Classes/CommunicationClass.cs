@@ -65,27 +65,25 @@ namespace Vaisala.HMP.Classes
             _reverseOrderFloat = test.ReverseOrderFloat;
         }
 
-        public async Task<float> GetValue(RequestStruct message) {
-            var response = await SendRequest(message);
+        public async Task<float> GetValue(RequestStruct request) {
+            var response = await SendRequest(request);
             return response.GetNumeric<float>();
         }
 
-        private async Task<ModbusMessageStruct[]> SendRequest(RequestStruct message) {
+        public async Task<DeviceIdentificationModel[]> GetValue(RequestExtendedStruct request) => (await SendRequest(request.ToBytes(DeviceId, false))).DeviceIdentification;
+
+        private async Task<ModbusMessageStruct[]> SendRequest(RequestStruct message) => (await SendRequest(message.ToBytes(DeviceId, false))).HoldingRegisters;
+
+        private async Task<ResponseModel> SendRequest(byte[] buffer) {
             try {
 
                 await _port.BaseStream.FlushAsync();
                 _port.DiscardInBuffer();
                 _port.DiscardOutBuffer();
 
-                byte[] buffer = message.ToBytes(DeviceId, false);
                 await _port.BaseStream.WriteAsync(buffer: buffer, offset: 0, count: buffer.Length);
 
-                var response = await ReadResponse();
-
-                if (!response.valid)
-                    return default;
-
-                return response.response;
+                return await ReadResponse();
             }
             catch (Exception exception) {
                 Console.WriteLine(exception.StackTrace);
@@ -93,47 +91,51 @@ namespace Vaisala.HMP.Classes
             }
         }
 
-        private async Task<(bool valid, ModbusMessageStruct[] response)> ReadResponse() {
+        private async Task<ResponseModel> ReadResponse() {
             if (!_port.IsOpen)
-                return (false, default);
+                return new ResponseModel();
 
             var (deviceValid, deviceValues) = await ReadByte();
             if (!deviceValid)
-                return (false, default);
+                return new ResponseModel();
 
             var (functionValid, functionCodeId) = await ReadByte();
             if (!functionValid)
-                return (false, default);
+                return new ResponseModel();
 
             byte deviceId = deviceValues;
-            FunctionCode functionCode = (FunctionCode)functionCodeId;
+            FunctionType functionCode = (FunctionType)functionCodeId;
 
-            byte expectedBytes;
             switch (functionCode) {
-                case FunctionCode.ReadHoldingRegisters:
+                case FunctionType.ReadHoldingRegisters:
                     var (expectedByteValid, expectedByteCount) = await ReadByte();
                     if (!expectedByteValid)
-                        return (false, default);
+                        return new ResponseModel();
 
-                    expectedBytes = expectedByteCount;
+                    return await ReadSimpleMessage(deviceId: deviceId, functionCode: functionCodeId, expectedBytes: expectedByteCount);
+
+                case FunctionType.WriteMultipleRegisters:
+                    //expectedBytes = 4;
                     break;
-                case FunctionCode.WriteMultipleRegisters:
-                    expectedBytes = 4;
-                    break;
-                case FunctionCode.ReadDeviceIdentification:
-                    expectedBytes = 6;
-                    break;
+                case FunctionType.ReadDeviceIdentification:
+                    return await ReadDeviceInfo(deviceId: deviceId, functionCode: functionCodeId, subHeadLength: 6);
                 default:
-                    return (false, default);
+                    return new ResponseModel();
             };
 
+
+            return new ResponseModel();
+        }
+
+        private async Task<ResponseModel> ReadSimpleMessage(byte deviceId, byte functionCode, byte expectedBytes) {
+            
             var (responseValid, bodyMessage) = await ReadBytes((uint)(expectedBytes + MessageTranslatorExtension.Crc16Length));
             if (!responseValid)
-                return (false, default);
+                return new ResponseModel();
 
             byte[] fullMessage = new byte[MessageTranslatorExtension.ResponseHeadLength + MessageTranslatorExtension.Crc16Length + expectedBytes];
             fullMessage[0] = deviceId;
-            fullMessage[1] = (byte)functionCode;
+            fullMessage[1] = functionCode;
             fullMessage[2] = expectedBytes;
 
             Array.Copy(bodyMessage, 0, fullMessage, MessageTranslatorExtension.ResponseHeadLength, bodyMessage.Length);
@@ -141,14 +143,73 @@ namespace Vaisala.HMP.Classes
             bool messageValid = fullMessage.CheckResponseMessage();
 
             if (!messageValid)
-                return (false, null);
+                return new ResponseModel();
 
             ModbusMessageStruct[] modbusReponse = new ModbusMessageStruct[expectedBytes / 2];
 
             for (int i = 0; i < modbusReponse.Length; i++)
                 modbusReponse[i] = new ModbusMessageStruct(bodyMessage[(i * 2)..(i * 2 + 2)]);
 
-            return (true, modbusReponse);
+            return new ResponseModel(modbusReponse);
+        }
+
+        private async Task<ResponseModel> ReadDeviceInfo(byte deviceId, byte functionCode, byte subHeadLength) {
+            
+            var (validHeader, subHeader) = await ReadBytes(subHeadLength);
+            if (!validHeader)
+                return new ResponseModel();
+
+            byte[][] messages = new byte[subHeader[^1]][];
+            int totalSize = 0;
+            for (int i = 0; i < messages.Length; i++) {
+                var (validId, id) = await ReadByte();
+                if (!validId)
+                    return new ResponseModel();
+
+                var (validLength, length) = await ReadByte();
+                if (!validLength)
+                    return new ResponseModel();
+
+                var (validMessage, message) = await ReadBytes(length);
+                if (!validMessage)
+                    return new ResponseModel();
+
+                messages[i] = new byte[2 + length];
+                messages[i][0] = id;
+                messages[i][1] = length;
+
+                Array.Copy(message, 0, messages[i], 2, length);
+
+                totalSize += 2 + length;
+            }
+
+            byte[] fullMessage = new byte[MessageTranslatorExtension.ResponseHeadDeviceInformationLength + MessageTranslatorExtension.ResponseSubHeadLength + MessageTranslatorExtension.Crc16Length + totalSize];
+            fullMessage[0] = deviceId;
+            fullMessage[1] = functionCode;
+
+            Array.Copy(subHeader, 0, fullMessage, 2, MessageTranslatorExtension.ResponseSubHeadLength);
+
+            int offset = (int)(MessageTranslatorExtension.ResponseHeadDeviceInformationLength + MessageTranslatorExtension.ResponseSubHeadLength); ;
+            for (int i = 0; i < messages.Length; i++) {
+                Array.Copy(messages[i], 0, fullMessage, offset, messages[i].Length);
+                offset += messages[i].Length;
+            }
+
+            var (validCrc16, crc16) = await ReadBytes(MessageTranslatorExtension.Crc16Length);
+            if (!validCrc16)
+                return new ResponseModel();
+            
+            Array.Copy(crc16, 0, fullMessage, fullMessage.Length - MessageTranslatorExtension.Crc16Length, MessageTranslatorExtension.Crc16Length);
+
+            bool crc16Confirmed = fullMessage.CheckResponseMessage();
+            if (!crc16Confirmed)
+                return new ResponseModel("CRC16 Checksum failed");
+
+            DeviceIdentificationModel[] deviceIdentifications = new DeviceIdentificationModel[messages.Length];
+            for (int i = 0; i < messages.Length; i++)
+                deviceIdentifications[i] = messages[i].ToDeviceIdentificationModel();
+
+            return new ResponseModel(deviceIdentifications);
         }
 
         private async Task<(bool valid, byte value)> ReadByte() {
