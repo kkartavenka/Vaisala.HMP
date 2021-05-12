@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.IO.Ports;
 using System.Threading.Tasks;
 using Vaisala.HMP.Enums;
@@ -15,11 +16,36 @@ namespace Vaisala.HMP.Classes
         #region Public properties
 
         public byte DeviceId { get; private set; }
-
+        public bool Connected { get; private set; }
+        public ConcurrentQueue<ExceptionModel> Exceptions { get; private set; } = new ConcurrentQueue<ExceptionModel>();
         #endregion
 
         #region Public methods
+
+        public void Disconnect() {
+            if (_port.IsOpen) {
+                _port.Close();
+                Connected = _port.IsOpen; 
+                _port.Dispose();
+            }
+        }
+
         public string[] DiscoverConnectedSerialPorts() => SerialPort.GetPortNames();
+
+        public async Task<T> GetValue<T>(RequestStruct request) {
+            if (request.ExpectedReturnType != typeof(T))
+                throw new Exception("Wrong type");
+
+            var response = await SendRequest(request);
+            
+            if (request.ExpectedReturnType == typeof(string))
+                return (T)Convert.ChangeType(response.GetString(), typeof(T));
+            
+            return response.GetNumeric<T>();
+        }
+
+        public async Task<DeviceIdentificationModel[]> GetValue(RequestExtendedStruct request) => (await SendRequest(request.ToBytes(DeviceId, false))).DeviceIdentification;
+
         #endregion
 
         #region Constructors
@@ -44,7 +70,15 @@ namespace Vaisala.HMP.Classes
 
         private async Task TestCommunication() {
 
-            Task openPortTask = Task.Run(() => _port.Open());
+            Task openPortTask = Task.Run(() => {
+                try {
+                    Connected = false;
+                    _port.Open();
+                }
+                catch (Exception exception) {
+                    Exceptions.Enqueue(new ExceptionModel(message: exception.Message));
+                }
+            });
 
             await Task.Delay(5000);
             await Task.WhenAny(openPortTask, Task.Delay(2000));
@@ -52,6 +86,7 @@ namespace Vaisala.HMP.Classes
             if (!_port.IsOpen)
                 return;
 
+            Connected = _port.IsOpen;
             _port.NewLine = "\r\n";
             _port.RtsEnable = true;
             _port.BaseStream.WriteTimeout = 1000;
@@ -64,13 +99,6 @@ namespace Vaisala.HMP.Classes
             DeviceTest test = new DeviceTest(test1: test1Response, test2: test2Response, test3: test3Response);
             _reverseOrderFloat = test.ReverseOrderFloat;
         }
-
-        public async Task<float> GetValue(RequestStruct request) {
-            var response = await SendRequest(request);
-            return response.GetNumeric<float>();
-        }
-
-        public async Task<DeviceIdentificationModel[]> GetValue(RequestExtendedStruct request) => (await SendRequest(request.ToBytes(DeviceId, false))).DeviceIdentification;
 
         private async Task<ModbusMessageStruct[]> SendRequest(RequestStruct message) => (await SendRequest(message.ToBytes(DeviceId, false))).HoldingRegisters;
 
@@ -129,7 +157,7 @@ namespace Vaisala.HMP.Classes
 
         private async Task<ResponseModel> ReadSimpleMessage(byte deviceId, byte functionCode, byte expectedBytes) {
             
-            var (responseValid, bodyMessage) = await ReadBytes((uint)(expectedBytes + MessageTranslatorExtension.Crc16Length));
+            var (responseValid, bodyMessage) = await ReadBytes(expectedBytes + MessageTranslatorExtension.Crc16Length);
             if (!responseValid)
                 return new ResponseModel();
 

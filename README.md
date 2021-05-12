@@ -32,6 +32,10 @@ CommunicationClass communication = new(portToBeUsed, deviceId);
 await communication.GetValue(MeasurementFloatMessages.Temperature)
 ```
 
+## Visualization.Blazor
+
+Enables storage of probe data into Sqlite3 database and real-time visualization.
+
 ## Limitations
 
 Only reading functions are implemented

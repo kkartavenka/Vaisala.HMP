@@ -12,7 +12,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Visualization.Blazor.Classes;
-using Visualization.Blazor.Data;
 
 namespace Visualization.Blazor
 {

@@ -1,14 +1,16 @@
 ﻿@page "/"
 @using Classes
 @using Vaisala.HMP.Models
+@using System.Threading
 @inject VaisalaControl VaisalaConnector;
 
-    <Container>
+<Row>
+    <Column ColumnSize="ColumnSize.Is6">
         <Row>
             <Field Horizontal="true">
-                <FieldLabel ColumnSize="ColumnSize.Is3">Port</FieldLabel>
-                <FieldBody ColumnSize="ColumnSize.Is7">
-                    <Select @bind-SelectedValue="@VaisalaConnector.Port" TValue="string" style="min-width:10em;">
+                <FieldLabel>Port</FieldLabel>
+                <FieldBody>
+                    <Select disabled="@(_connected)" @bind-SelectedValue="@VaisalaConnector.Port" TValue="string" style="min-width:10em;">
                         <SelectItem Value="@string.Empty"></SelectItem>
                         @foreach (string port in VaisalaConnector.AvailableSerialPorts) {
                             <SelectItem Value="@port">@port</SelectItem>
@@ -17,39 +19,131 @@
                 </FieldBody>
             </Field>
         </Row>
+
         <Row>
             <Field Horizontal="true">
-                <FieldLabel ColumnSize="ColumnSize.Is3">Device Id</FieldLabel>
-                <FieldBody ColumnSize="ColumnSize.Is7">
-                    <TextEdit Placeholder="@VaisalaConnector.DeviceId.ToString()" Pattern="[0-9]" />
+                <FieldLabel>Device Id</FieldLabel>
+                <FieldBody>
+                    <NumericEdit disabled="@(_connected)" @bind-Value="DeviceId" TValue="int?" Min="0" Max="byte.MaxValue" />
+                </FieldBody>
+            </Field>
+        </Row>
+
+        <Row>
+            <Field Horizontal="true">
+                <FieldLabel>Aggregate time, s</FieldLabel>
+                <FieldBody>
+                    <NumericEdit disabled="@(_connected)" @bind-Value="AggregateFrequency" TValue="int?" Min="1" Max="int.MaxValue" />
+                </FieldBody>
+            </Field>
+        </Row>
+
+        <Row>
+            <Field Horizontal="true">
+                <FieldLabel>Base filename</FieldLabel>
+                <FieldBody>
+                    <TextEdit disabled="@(_connected)" Placeholder="@VaisalaConnector.BaseFileName" @bind-Text="@VaisalaConnector.BaseFileName" />
                 </FieldBody>
             </Field>
         </Row>
 
         <Button Color="Color.Light" Clicked="@(() => VaisalaConnector.GetSerialPortList())">Refresh</Button>
-        <Button Color="Color.Light" Clicked="@(async () => await TryConnect())">Try Connect</Button>
+        <Button Color="@_connectButtonColour" Clicked="@(async () => await TryConnect())">@_connectButtonText</Button>
+        <Button Color="Color.Light" Clicked="@(() => VaisalaConnector.StartRecording())">Start/Stop</Button>
 
-    </Container>
+    </Column>
+    <Column ColumnSize="ColumnSize.Is6">
+        @foreach (DeviceIdentificationModel info in VaisalaConnector.DeviceIdentification) {
+            <Row>@($"{info.ObjectName} - {info.Value}")</Row>
+        }
 
-<Container>
-    @foreach(DeviceIdentificationModel info in VaisalaConnector.DeviceIdentification) {
-        <Row>@($"{info.ObjectName} - {info.Value}")</Row>
+    </Column>
+</Row>
+
+
+<SnackbarStack @ref="snackbarStack" Location="SnackbarStackLocation.Right" />
+
+@code {
+
+    bool _connected = false;
+
+    Color _connectButtonColour = Color.Light;
+    string _connectButtonText = "TryConnect";
+
+    SnackbarStack snackbarStack;
+    string _selectedSerialPort;
+    Thread _notifications;
+
+    private byte _deviceId;
+    private int _aggFrequency;
+
+    int? AggregateFrequency {
+        get => _aggFrequency;
+        set {
+            if (value > 1 && value < int.MaxValue) { 
+                _aggFrequency = (int)value;
+                VaisalaConnector.AggregateTime = _aggFrequency;
+            }
+            else if (value < 1)
+                _aggFrequency = 1;
+            else if (value > int.MaxValue)
+                _aggFrequency = int.MaxValue;
+        }
     }
-</Container>
 
-    @code {
-        bool visible = false;
-        private string _selectedSerialPort;
+    int? DeviceId {
+        get => _deviceId;
+        set {
+            if (value >= 0 && value <= byte.MaxValue) { 
+                _deviceId = (byte)value;
+                VaisalaConnector.DeviceId = _deviceId;
+            }
+            else if (value < 0)
+                _deviceId = byte.MinValue;
+            else if (value > 0)
+                _deviceId = byte.MaxValue;
+        }
+    }
 
-        protected async Task TryConnect() {
+    void NotificationThread() {
+        while (true) {
+            List<string> exceptions = VaisalaConnector.PullExceptions();
+            foreach (string item in exceptions) {
+                Task.Run(async () => await snackbarStack.PushAsync(item, SnackbarColor.Info)).Wait();
+                Thread.Sleep(500);
+            }
+
+            Thread.Sleep(500);
+        }
+    }
+
+    async Task TryConnect() {
+        if (VaisalaConnector.Connected() == false)
             await VaisalaConnector.TryConnect();
+        else
+            VaisalaConnector.TryDisconnect();
+
+        if (VaisalaConnector.Connected()) {
+            _connected = true;
+            _connectButtonColour = Color.Danger;
+            _connectButtonText = "Disconnect";
         }
-
-        protected override Task OnInitializedAsync() {
-            VaisalaConnector.Initialize();
-
-
-
-            return base.OnInitializedAsync();
+        else {
+            _connected = false;
+            _connectButtonColour = Color.Light;
+            _connectButtonText = "Try Connect";
         }
     }
+
+    protected override Task OnInitializedAsync() {
+        _notifications = new Thread(new ThreadStart(NotificationThread));
+        _notifications.Start();
+
+        VaisalaConnector.Initialize();
+
+        _deviceId = VaisalaConnector.DeviceId;
+        _aggFrequency = VaisalaConnector.AggregateTime;
+
+        return base.OnInitializedAsync();
+    }
+}
