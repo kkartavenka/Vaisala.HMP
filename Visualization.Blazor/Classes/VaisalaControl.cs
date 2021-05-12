@@ -19,13 +19,14 @@ namespace Visualization.Blazor.Classes
     public class VaisalaControl {
 
         private static CommunicationClass communication;
+        private static ConcurrentQueue<ExceptionModel> _exceptions = new();
         private static Thread _recordThread;
         private static Thread _aggregationThread;
         private static bool _cancellationToken;
         private const string _defaultDirectory = "data";
         private ConcurrentQueue<UnaggregatedRecordStruct> _recordsQueue = new();
         
-        private const string _tableCreateQuery = @"CREATE TABLE report (id INTEGER PRIMARY KEY, timestamp INTEGER NOT NULL, date_time TEXT NOT NULL, relative_humidity REAL NOT NULL, relative_humidity_sd REAL NOT NULL, relative_humidity_skew REAL NOT NULL, absolute_humidity REAL NOT NULL, absolute_humidity_sd REAL NOT NULL, absolute_humidity_skew REAL NOT NULL, temperature REAL NOT NULL, temperature_sd REAL NOT NULL, temperature_skew REAL NOT NULL, water_concentration REAL NOT NULL, water_concentration_sd REAL NOT NULL, water_concentration_skew REAL NOT NULL);";
+        private const string _tableCreateQuery = @"CREATE TABLE probe_report (id INTEGER PRIMARY KEY, timestamp INTEGER NOT NULL, date_time TEXT NOT NULL, relative_humidity REAL NOT NULL, relative_humidity_sd REAL NOT NULL, relative_humidity_skew REAL NOT NULL, absolute_humidity REAL NOT NULL, absolute_humidity_sd REAL NOT NULL, absolute_humidity_skew REAL NOT NULL, temperature REAL NOT NULL, temperature_sd REAL NOT NULL, temperature_skew REAL NOT NULL, water_concentration REAL NOT NULL, water_concentration_sd REAL NOT NULL, water_concentration_skew REAL NOT NULL);";
 
         #region Private methods
 
@@ -42,6 +43,10 @@ namespace Visualization.Blazor.Classes
                 if (records.Count != 0) {
                     AggregatedRecordModel aggregatedRecord = new(records);
 
+                    _exceptions.Enqueue(new($"Absolute humidity: {aggregatedRecord.AbsoluteHumidity}"));
+                    _exceptions.Enqueue(new($"Relative humidity: {aggregatedRecord.RelativeHumidity}"));
+                    _exceptions.Enqueue(new($"Temperature: {aggregatedRecord.Temperature}"));
+                    _exceptions.Enqueue(new($"Water Concentration: {aggregatedRecord.WaterConcentration}"));
 
                     int weekNumber = CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(DateTime.Now, CalendarWeekRule.FirstDay, DayOfWeek.Monday);
 
@@ -51,7 +56,7 @@ namespace Visualization.Blazor.Classes
                     if (!File.Exists(filename))
                         ExecuteNonQuery(_tableCreateQuery, connectionString);
 
-                    string sqlQuery = $"INSERT INTO report (timestamp, date_time, relative_humidity, relative_humidity_sd, relative_humidity_skew, absolute_humidity, absolute_humidity_sd, absolute_humidity_skew, temperature, temperature_sd, temperature_skew, water_concentration, water_concentration_sd, water_concentration_skew) " +
+                    string sqlQuery = $"INSERT INTO probe_report (timestamp, date_time, relative_humidity, relative_humidity_sd, relative_humidity_skew, absolute_humidity, absolute_humidity_sd, absolute_humidity_skew, temperature, temperature_sd, temperature_skew, water_concentration, water_concentration_sd, water_concentration_skew) " +
                         $"VALUES ({aggregatedRecord.Timestamp},'{aggregatedRecord.Date}',{aggregatedRecord.RelativeHumidity},{aggregatedRecord.RelativeHumiditySd},{aggregatedRecord.RelativeHumiditySkew}," +
                         $"{aggregatedRecord.AbsoluteHumidity},{aggregatedRecord.AbsoluteHumiditySd},{aggregatedRecord.AbsoluteHumiditySkew}," +
                         $"{aggregatedRecord.Temperature},{aggregatedRecord.TemperatureSd},{aggregatedRecord.TemperatureSkew}," +
@@ -78,15 +83,27 @@ namespace Visualization.Blazor.Classes
 
         private void RecordThread() {
             while (!_cancellationToken) {
-                Task.Run(async () => {
+
+                bool measurementSuccessfull = false;
+                
+                Task measurementTask = Task.Run(async () => {
                     float absHum = await communication.GetValue<float>(MeasurementFloatMessages.AbsoluteHumidity);
                     float relHum = await communication.GetValue<float>(MeasurementFloatMessages.RelativeHumidity);
                     float temp = await communication.GetValue<float>(MeasurementFloatMessages.Temperature);
                     float waterConc = await communication.GetValue<float>(MeasurementFloatMessages.WaterConcentration);
 
                     _recordsQueue.Enqueue(new(absHum: absHum, relHum: relHum, temp: temp, waterConc: waterConc));
-                }).Wait();
-                
+
+                    measurementSuccessfull = true;
+                });
+
+                Task timeoutTask = Task.Run(() => Thread.Sleep(2000));
+
+                Task.WaitAny(measurementTask, timeoutTask);
+
+                if (!measurementSuccessfull)
+                    Console.WriteLine("Faulty measurement");
+
                 Thread.Sleep(2000);
             }
         }
@@ -114,11 +131,17 @@ namespace Visualization.Blazor.Classes
                 while (communication.Exceptions.TryDequeue(out ExceptionModel value))
                     returnVar.Add($"{value.Time}. {value.Message}");
 
+            lock (_exceptions) {
+                returnVar.AddRange(_exceptions.Select(value => $"{value.Time}. {value.Message}"));
+                _exceptions.Clear();
+            }
+
             return returnVar;
         }
 
         public void StartRecording() {
             if (_recordThread == null && _aggregationThread == null) {
+                Active = true;
                 _recordThread = new(new ThreadStart(RecordThread));
                 _aggregationThread = new(new ThreadStart(AggreagationThread));
                 _cancellationToken = false;
@@ -135,6 +158,7 @@ namespace Visualization.Blazor.Classes
             _aggregationThread.Join();
             _recordThread = null;
             _aggregationThread = null;
+            Active = false;
         }
 
         public async Task TryConnect() {
@@ -142,12 +166,16 @@ namespace Visualization.Blazor.Classes
             DeviceIdentification = await communication.GetValue(new RequestExtendedStruct(functionCode: FunctionType.ReadDeviceIdentification, mei: MEIType.ReadDeviceInformation, deviceIdCat: DeviceIDCategory.Extended, deviceIdObj: DeviceIDObject.VendorName));
         }
 
-        public void TryDisconnect() => communication.Disconnect();
+        public void TryDisconnect() {
+            communication.Disconnect();
+            DeviceIdentification = Array.Empty<DeviceIdentificationModel>();
+        }
 
         #endregion
 
         #region Public properties
 
+        public bool Active { get; set; } = false;
         public int AggregateTime { get; set; } = 60000;
         public string[] AvailableSerialPorts { get; private set; } = Array.Empty<string>();
         public string BaseFileName { get; set; } = "probe";

@@ -49,7 +49,7 @@
 
         <Button Color="Color.Light" Clicked="@(() => VaisalaConnector.GetSerialPortList())">Refresh</Button>
         <Button Color="@_connectButtonColour" Clicked="@(async () => await TryConnect())">@_connectButtonText</Button>
-        <Button Color="Color.Light" Clicked="@(() => VaisalaConnector.StartRecording())">Start/Stop</Button>
+        <Button Color="@_recordButtonColour" Clicked="@(() => StartRecording())">@_recordButtonText</Button>
 
     </Column>
     <Column ColumnSize="ColumnSize.Is6">
@@ -70,6 +70,9 @@
     Color _connectButtonColour = Color.Light;
     string _connectButtonText = "TryConnect";
 
+    Color _recordButtonColour = Color.Light;
+    string _recordButtonText = "Start";
+
     SnackbarStack snackbarStack;
     string _selectedSerialPort;
     Thread _notifications;
@@ -80,7 +83,7 @@
     int? AggregateFrequency {
         get => _aggFrequency;
         set {
-            if (value > 1 && value < int.MaxValue) { 
+            if (value > 1 && value < int.MaxValue) {
                 _aggFrequency = (int)value;
                 VaisalaConnector.AggregateTime = _aggFrequency;
             }
@@ -94,7 +97,7 @@
     int? DeviceId {
         get => _deviceId;
         set {
-            if (value >= 0 && value <= byte.MaxValue) { 
+            if (value >= 0 && value <= byte.MaxValue) {
                 _deviceId = (byte)value;
                 VaisalaConnector.DeviceId = _deviceId;
             }
@@ -110,10 +113,23 @@
             List<string> exceptions = VaisalaConnector.PullExceptions();
             foreach (string item in exceptions) {
                 Task.Run(async () => await snackbarStack.PushAsync(item, SnackbarColor.Info)).Wait();
+                InvokeAsync(() => StateHasChanged());
                 Thread.Sleep(500);
             }
 
-            Thread.Sleep(500);
+            Thread.Sleep(1000);
+        }
+    }
+
+    void StartRecording() {
+        if (!VaisalaConnector.Active) {
+            VaisalaConnector.StartRecording();
+            _recordButtonColour = Color.Danger;
+            _recordButtonText = "Stop";
+        } else {
+            VaisalaConnector.StopRecording();
+            _recordButtonColour = Color.Light;
+            _recordButtonText = "Start";
         }
     }
 
@@ -136,6 +152,7 @@
     }
 
     protected override Task OnInitializedAsync() {
+        _connected = VaisalaConnector.Connected();
         _notifications = new Thread(new ThreadStart(NotificationThread));
         _notifications.Start();
 
