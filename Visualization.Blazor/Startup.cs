@@ -29,7 +29,7 @@ namespace Visualization.Blazor
             services.AddRazorPages();
             services.AddServerSideBlazor();
             services
-                .AddBlazorise(o => o.ChangeTextOnKeyPress = true)
+                .AddBlazorise()//(o => o.ChangeTextOnKeyPress = true)
                 .AddAntDesignProviders()
                 .AddFontAwesomeIcons();
             services.AddSingleton<VaisalaControl>();

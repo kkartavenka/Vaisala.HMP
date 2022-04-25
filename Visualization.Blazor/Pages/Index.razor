@@ -1,6 +1,6 @@
 ﻿@page "/"
 @using Classes
-@using Vaisala.HMP.Models
+@using Vaisala.HMP.NET.Models
 @using System.Threading
 @inject VaisalaControl VaisalaConnector;
 
@@ -61,7 +61,7 @@
 </Row>
 
 
-<SnackbarStack @ref="snackbarStack" Location="SnackbarStackLocation.Right" />
+<SnackbarStack @ref="snackbarStack" Location="SnackbarStackLocation.End" />
 
 @code {
 

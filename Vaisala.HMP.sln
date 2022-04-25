@@ -1,16 +1,24 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31205.134
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32328.378
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vaisala.HMP", "Vaisala.HMP9\Vaisala.HMP.csproj", "{5B991CC7-8365-479D-8729-E6D96FA303AD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Vaisala.HMP", "Vaisala.HMP9\Vaisala.HMP.csproj", "{5B991CC7-8365-479D-8729-E6D96FA303AD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{98C5B878-BC8C-44A1-A26E-855F8C490631}"
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Visualization.Blazor", "Visualization.Blazor\Visualization.Blazor.csproj", "{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Visualization.Blazor", "Visualization.Blazor\Visualization.Blazor.csproj", "{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Vaisala.HMP.NET", "Vaisala.HMP.NET\Vaisala.HMP.NET.csproj", "{541B6B3E-03F7-4F01-ADEE-5F87C5D895A6}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HostService", "HostService\HostService.csproj", "{7C2DC200-3624-42D4-9CDE-77F1056FAE02}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrpcClient", "GrpcClient\GrpcClient.csproj", "{E3CA5216-E5CA-4715-9325-23997D56EB0A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrpcLib", "GrpcLib\GrpcLib.csproj", "{B27D8B1A-8BAC-4EB5-A0B2-1B87EBB4697B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,6 +34,22 @@ Global
 		{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1EFA5020-79D9-45E6-95AA-1CDBF617D91D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{541B6B3E-03F7-4F01-ADEE-5F87C5D895A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{541B6B3E-03F7-4F01-ADEE-5F87C5D895A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{541B6B3E-03F7-4F01-ADEE-5F87C5D895A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{541B6B3E-03F7-4F01-ADEE-5F87C5D895A6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7C2DC200-3624-42D4-9CDE-77F1056FAE02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7C2DC200-3624-42D4-9CDE-77F1056FAE02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7C2DC200-3624-42D4-9CDE-77F1056FAE02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7C2DC200-3624-42D4-9CDE-77F1056FAE02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E3CA5216-E5CA-4715-9325-23997D56EB0A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E3CA5216-E5CA-4715-9325-23997D56EB0A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E3CA5216-E5CA-4715-9325-23997D56EB0A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E3CA5216-E5CA-4715-9325-23997D56EB0A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B27D8B1A-8BAC-4EB5-A0B2-1B87EBB4697B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B27D8B1A-8BAC-4EB5-A0B2-1B87EBB4697B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B27D8B1A-8BAC-4EB5-A0B2-1B87EBB4697B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B27D8B1A-8BAC-4EB5-A0B2-1B87EBB4697B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

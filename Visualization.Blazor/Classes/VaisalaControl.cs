@@ -8,10 +8,10 @@ using System.IO.Ports;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Vaisala.HMP.Classes;
-using Vaisala.HMP.Enums;
-using Vaisala.HMP.Models;
-using Vaisala.HMP.Models.Messages;
+using Vaisala.HMP.NET.Classes;
+using Vaisala.HMP.NET.Enums;
+using Vaisala.HMP.NET.Models;
+using Vaisala.HMP.NET.Models.Messages;
 using Visualization.Blazor.Models;
 
 namespace Visualization.Blazor.Classes
@@ -74,7 +74,14 @@ namespace Visualization.Blazor.Classes
             using var command = connection.CreateCommand();
             command.CommandText = sqlQuery;
 
-            command.ExecuteNonQuery();
+            try {
+                command.ExecuteNonQuery();
+            } catch (Exception ex) {
+                Console.WriteLine(ex.ToString());
+                Console.WriteLine();
+                Console.WriteLine($"SQL Query: {sqlQuery}");
+                Console.WriteLine();
+            }
             command.Dispose();
 
             connection.Close();

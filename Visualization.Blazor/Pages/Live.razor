@@ -1,6 +1,6 @@
 ﻿@page "/live"
 @using Classes
-@using Vaisala.HMP.Models
+@using Vaisala.HMP.NET.Models
 @using System.Threading
 @inject VaisalaControl VaisalaConnector;
 
@@ -69,7 +69,7 @@
             //BackgroundColor = backgroundColors[0],
             //BorderColor = borderColors[0],
             Fill = false,
-            LineTension = 0,
+            //LineTension = 0,
             BorderDash = new List<int> { 8, 4 },
         };
     }
